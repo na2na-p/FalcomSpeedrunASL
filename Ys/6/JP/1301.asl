@@ -1,4 +1,5 @@
-state("ys6_win")
+state("YS6_WIN")
+
 {
 	// NOTE: The ID system is slightly different from other versions.
 	byte roomID : 0x0171B24, 0x40;
