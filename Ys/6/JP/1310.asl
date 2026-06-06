@@ -21,6 +21,7 @@ startup
     vars.lastRoom    = -1;
     vars.fromRoom    = -1;
     vars.roomChanged = false;
+    vars.bossSeen    = false;   // 現在の部屋でボスが生存(HP>0)していたか
 }
 
 init
@@ -29,6 +30,7 @@ init
     vars.lastRoom    = -1;
     vars.fromRoom    = -1;
     vars.roomChanged = false;
+    vars.bossSeen    = false;
 }
 
 update
@@ -71,20 +73,24 @@ update
         vars.lastRoom    = rid;
         vars.roomChanged = true;
     }
+
+    // ボス生存観測: 部屋が変わったらリセット。同じ部屋でHP>0を見たら true。
+    // → ロード時はゲージが瞬間0化するが、部屋が変わるので bossSeen=false となり誤検知しない。
+    if ((bool)vars.roomChanged)
+        vars.bossSeen = false;
+    else if ((bool)current.loaded && (float)current.BossHP > 0f)
+        vars.bossSeen = true;
 }
 
 start
 {
-    // 「つづきから」等の別メニュー(Menu=2,1 / 3,1)は除外。新規ゲームのみ。
-    int m0 = (int)current.menu0, m1 = (int)current.menu1;
-    bool otherMenu = (m1 == 1 && (m0 == 2 || m0 == 3));
-
-    // 新規ゲーム: タイトル(Room=1)から最初の部屋へ遷移した瞬間
-    // ストーリー(mode==0)のみ。TimeAttack突入(mode==1)や別メニューは除外。
+    // 新規ゲームのみで開始。タイトル(Room=1)→最初の部屋へ遷移した瞬間に：
+    //   mode==0      … ストーリー（TimeAttack の mode!=0 を除外）
+    //   menu0(0x571c4d)!=0 … 新規ゲームメニュー経由（=1）。「つづきから」は menu0==0 なので除外。
     if ((bool)current.loaded && (int)old.roomID == 1 && (int)current.roomID != 1
-        && (int)current.mode == 0 && !otherMenu)
+        && (int)current.mode == 0 && (int)current.menu0 != 0)
     {
-        vars.lastRoom = -1; vars.fromRoom = -1;
+        vars.lastRoom = -1; vars.fromRoom = -1; vars.bossSeen = false;
         return true;
     }
     return false;
@@ -95,7 +101,9 @@ split
     if (!(bool)current.loaded) return false;
     if ((int)current.mode != 0) return false;   // Time Attack(mode!=0)中は一切発火しない
 
-    bool bossDown = (float)old.BossHP != 0f && (float)current.BossHP == 0f;
+    // ボス撃破 = その部屋で生存(HP>0)を観測した後に HP が 0 になった瞬間。
+    // bossSeen により、ロードでゲージが0化しただけのケースを除外。
+    bool bossDown = (bool)vars.bossSeen && (float)old.BossHP != 0f && (float)current.BossHP == 0f;
     bool roomChg  = (bool)vars.roomChanged;
     int  prev     = (int)vars.fromRoom;
     int  room     = (int)current.roomID;
@@ -117,9 +125,9 @@ split
     if (roomChg && prev == 56  && room == 196) return true;                     // Ark IN
     if (roomChg && prev == 203 && room == 204) return true;                     // Ernst
 
-    // --- しきい値到達（跨いだ瞬間。ロード後の誤爆防止に old!=-1）---
-    if ((int)old.sword0 != -1 && (int)old.sword0 < 4 && (int)current.sword0 >= 4) return true; // 青Lv4(idx0)
-    if ((int)old.sword1 != -1 && (int)old.sword1 < 8 && (int)current.sword1 >= 8) return true; // 赤Lv8(idx1)
+    // --- しきい値到達（跨いだ瞬間。ロード後の誤爆防止に old!=-1 ＋ 発生する部屋に限定）---
+    if (room == 116 && (int)old.sword0 != -1 && (int)old.sword0 < 4 && (int)current.sword0 >= 4) return true; // 青Lv4(idx0)
+    if (room == 116 && (int)old.sword1 != -1 && (int)old.sword1 < 8 && (int)current.sword1 >= 8) return true; // 赤Lv8(idx1)
     if (room == 182 && (int)old.emel != -1 && (int)old.emel < 19839 && (int)current.emel >= 19839) return true; // LimeCave Emel
 
     return false;
