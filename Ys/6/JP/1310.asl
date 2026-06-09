@@ -62,7 +62,7 @@ else
     current.roomID = -1;
     current.level = -1; current.sword0 = -1; current.sword1 = -1;
     current.emel = -1; current.armor = false; current.shield = false;
-    current.mode = -1; current.exp = -1;
+    current.mode = -1; current.exp = -1f;
 }
 
 // 部屋遷移検出。-1(未ロード)/0(無マップ中継) は有効部屋とみなさず lastRoom を更新しない。
